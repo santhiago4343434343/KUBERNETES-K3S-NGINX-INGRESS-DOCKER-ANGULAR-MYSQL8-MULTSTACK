@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: catalogo-backend:v14
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: mysql-secret
+            - secretRef:
+                name: mailtrap-secret
+                optional: true
+            - secretRef:
+                name: paypal-secret
+                optional: true
+          env:
+            - name: MYSQL_HOST
+              value: mysql
+            - name: TMDB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tmdb-secret
+                  key: TMDB_API_KEY
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: JWT_SECRET
+            - name: TURNSTILE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: turnstile-secret
+                  key: TURNSTILE_SECRET
+          ports:
+            - containerPort: 8000

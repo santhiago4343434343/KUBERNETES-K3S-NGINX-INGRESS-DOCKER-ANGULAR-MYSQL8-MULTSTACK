@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pymysql
+requests
+pyjwt
+bcrypt
+fpdf2

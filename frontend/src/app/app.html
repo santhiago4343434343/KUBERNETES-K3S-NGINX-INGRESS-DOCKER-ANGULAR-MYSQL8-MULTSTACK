@@ -1,0 +1,851 @@
+<div class="min-h-screen bg-slate-50">
+
+  <header class="bg-indigo-700 text-white py-6 shadow-md">
+    <div class="max-w-6xl mx-auto px-4 flex items-center justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold">🎬 Catálogo de Filmes</h1>
+        <p class="text-indigo-200 mt-1">powered by TDmovies platform technology</p>
+      </div>
+      <div class="shrink-0">
+        @if (usuario()) {
+        <span class="text-indigo-100 mr-2 hidden sm:inline">Olá, {{ usuario() }} 👋</span>
+        @if (ehPremium()) {
+        <span class="bg-amber-400 text-amber-900 text-xs font-bold px-2 py-1 rounded-full mr-2">✨ Premium</span>
+        }
+        <button (click)="pedirSair()"
+          class="bg-indigo-500 hover:bg-indigo-400 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Sair</button>
+        } @else {
+        <button (click)="abrirAuth('login')"
+          class="bg-white text-indigo-700 hover:bg-indigo-50 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Entrar</button>
+        }
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- ===== DESTAQUES (vitrine da home, ao vivo da TMDB) ===== -->
+    @if (heroFilme(); as f) {
+    <div (click)="abrirDetalhesVitrine(f)"
+      class="relative rounded-2xl overflow-hidden mb-8 h-64 md:h-96 bg-slate-900 cursor-pointer">
+      <img [src]="f.backdrop_url" [alt]="f.titulo" class="w-full h-full object-cover opacity-60">
+      <div
+        class="absolute inset-0 flex flex-col justify-end p-6 bg-gradient-to-t from-black/90 via-black/30 to-transparent">
+        <span class="text-amber-400 text-sm font-semibold mb-1">🔥 Em alta esta semana</span>
+        <h2 class="text-white text-2xl md:text-4xl font-bold leading-tight">{{ f.titulo }}</h2>
+        <p class="text-slate-200 text-sm mt-2 max-w-2xl line-clamp-2">{{ f.sinopse }}</p>
+        <div class="flex items-center gap-3 mt-2 text-sm text-slate-300">
+          @if (f.nota) { <span>⭐ {{ f.nota }}</span> }
+          @if (f.ano) { <span>{{ f.ano }}</span> }
+        </div>
+      </div>
+
+      <button (click)="$event.stopPropagation(); antHero()"
+        class="absolute left-3 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/70 text-white w-10 h-10 rounded-full flex items-center justify-center text-2xl leading-none"
+        aria-label="Anterior">‹</button>
+      <button (click)="$event.stopPropagation(); proxHero()"
+        class="absolute right-3 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/70 text-white w-10 h-10 rounded-full flex items-center justify-center text-2xl leading-none"
+        aria-label="Próximo">›</button>
+
+      <div class="absolute bottom-4 right-6 z-10 flex gap-2">
+        @for (item of (destaques()?.em_alta || []); track $index) {
+        <button (click)="$event.stopPropagation(); irHero($index)"
+          class="w-2.5 h-2.5 rounded-full bg-white transition-opacity" [class.opacity-100]="heroAtual() === $index"
+          [class.opacity-40]="heroAtual() !== $index" aria-label="Ir para destaque"></button>
+        }
+      </div>
+    </div>
+    }
+
+    @for (sec of secoes; track sec.chave) {
+    @if (destaques()[sec.chave]?.length) {
+    <section class="mb-8">
+      <h3 class="text-lg font-bold text-slate-800 mb-3">{{ sec.titulo }}</h3>
+      <div class="flex gap-4 overflow-x-auto py-2">
+        @for (f of destaques()[sec.chave]; track f.id) {
+        <div (click)="abrirDetalhesVitrine(f)"
+          class="shrink-0 w-32 md:w-40 cursor-pointer transition-transform duration-300 hover:scale-105">
+          @if (f.poster_url) {
+          <img [src]="f.poster_url" [alt]="f.titulo" class="w-full h-48 md:h-60 object-cover rounded-xl shadow">
+          } @else {
+          <div
+            class="w-full h-48 md:h-60 bg-slate-200 rounded-xl flex items-center justify-center text-3xl text-slate-400">
+            🎬</div>
+          }
+          <p class="text-sm font-medium text-slate-700 mt-1 line-clamp-1">{{ f.titulo }}</p>
+          <p class="text-xs text-slate-400">⭐ {{ f.nota }} · {{ f.ano }}</p>
+        </div>
+        }
+      </div>
+    </section>
+    }
+    }
+    <!-- ===== FIM DESTAQUES ===== -->
+
+    @if (usuario()) {
+    @if (ehPremium()) {
+    <div class="mb-8 bg-gradient-to-br from-amber-50 to-white border border-amber-200 rounded-2xl p-5">
+      <h2 class="text-2xl font-bold text-slate-800 mb-4">✨ Área VIP <span
+          class="text-amber-500 text-base font-semibold">· Exclusivo Premium</span></h2>
+      @for (sec of secoesPremium; track sec.chave) {
+      @if (premiumFilmes()[sec.chave]?.length) {
+      <section class="mb-6">
+        <h3 class="text-lg font-bold text-slate-800 mb-3">{{ sec.titulo }}</h3>
+        <div class="flex gap-4 overflow-x-auto py-2">
+          @for (f of premiumFilmes()[sec.chave]; track f.id) {
+          <div (click)="abrirDetalhesVitrine(f)"
+            class="shrink-0 w-32 md:w-40 cursor-pointer transition-transform duration-300 hover:scale-105">
+            @if (f.poster_url) {
+            <img [src]="f.poster_url" [alt]="f.titulo" class="w-full h-48 md:h-60 object-cover rounded-xl shadow">
+            } @else {
+            <div
+              class="w-full h-48 md:h-60 bg-slate-200 rounded-xl flex items-center justify-center text-3xl text-slate-400">
+              🎬</div>
+            }
+            <p class="text-sm font-medium text-slate-700 mt-1 line-clamp-1">{{ f.titulo }}</p>
+            <p class="text-xs text-slate-400">⭐ {{ f.nota }} · {{ f.ano }}</p>
+          </div>
+          }
+        </div>
+      </section>
+      }
+      }
+    </div>
+    } @else {
+    <section
+      class="mb-8 bg-gradient-to-r from-amber-400 to-amber-500 rounded-2xl p-6 text-amber-950 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div>
+        <h2 class="text-xl font-bold">✨ Assine o Premium</h2>
+        <p class="text-sm mt-1">Tenha acesso aos filmes em cartaz e às estreias mais recentes — exclusivo para
+          assinantes.</p>
+      </div>
+      <button (click)="assinar()"
+        class="shrink-0 bg-amber-950 hover:bg-amber-900 text-white font-semibold px-6 py-3 rounded-lg transition-colors">
+        Assinar agora
+      </button>
+    </section>
+    }
+    <h2 class="text-2xl font-bold text-slate-800 mb-4">🔎 Buscar filmes</h2>
+    <div class="bg-white rounded-2xl shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3">
+      <input [(ngModel)]="termoBusca" (keyup.enter)="buscar()" placeholder="Busque um filme (ex.: Interestelar)"
+        class="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      <select [(ngModel)]="novoStatus"
+        class="border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <option value="quero ver">Quero ver</option>
+        <option value="assistindo">Assistindo</option>
+        <option value="assistido">Assistido</option>
+      </select>
+      <button (click)="buscar()"
+        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors">
+        🔍 Buscar
+      </button>
+    </div>
+
+    @if (buscando()) {
+    <p class="text-center text-slate-400 py-6">Buscando...</p>
+    }
+    @if (resultados().length) {
+    <h3 class="text-lg font-bold text-slate-800 mb-3">Resultados — clique em ➕ para adicionar à sua lista</h3>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-10">
+      @for (r of resultados(); track r.id) {
+      <div class="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col">
+        @if (r.poster_url) {
+        <img [src]="r.poster_url" [alt]="r.titulo" class="w-full h-64 object-cover">
+        } @else {
+        <div class="w-full h-64 bg-slate-200 flex items-center justify-center text-5xl text-slate-400">🎬</div>
+        }
+        <div class="p-3 flex flex-col flex-1">
+          <div class="flex items-start justify-between gap-2">
+            <h4 class="font-semibold text-slate-800 text-sm leading-tight">{{ r.titulo }}</h4>
+            @if (r.ano) { <span class="text-xs text-slate-500 shrink-0">{{ r.ano }}</span> }
+          </div>
+          @if (r.nota) { <span class="text-xs text-amber-700 mt-1">⭐ {{ r.nota }}</span> }
+          <button (click)="adicionarFilme(r)"
+            class="mt-3 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2 rounded-lg transition-colors">
+            ➕ Adicionar
+          </button>
+        </div>
+      </div>
+      }
+    </div>
+    }
+
+    <h2 class="text-2xl font-bold text-slate-800 mb-4">🎬 Minha Lista</h2>
+    @if (filmes().length === 0) {
+    <p class="text-center text-slate-400 py-16">Sua lista está vazia. Adicione o primeiro filme! 🍿</p>
+    } @else {
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      @for (filme of filmes(); track filme.id) {
+      <div class="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-xl transition-shadow">
+        @if (filme.poster_url) {
+        <img [src]="filme.poster_url" [alt]="filme.titulo" class="w-full h-72 object-cover">
+        } @else {
+        <div class="w-full h-72 bg-slate-200 flex items-center justify-center text-5xl text-slate-400">🎬</div>
+        }
+        <div class="p-4 flex flex-col flex-1">
+          <div class="flex items-start justify-between gap-2">
+            <h3 class="font-bold text-slate-800 leading-tight">{{ filme.titulo }}</h3>
+            @if (filme.ano) { <span class="text-sm text-slate-500 shrink-0">{{ filme.ano }}</span> }
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mt-2">
+            @if (filme.nota) {
+            <span
+              class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-sm font-semibold px-2 py-0.5 rounded-full">⭐
+              {{ filme.nota }}</span>
+            }
+            @if (filme.classificacao) {
+            <span class="bg-slate-800 text-white text-xs font-bold px-2 py-0.5 rounded">{{ filme.classificacao }}</span>
+            }
+            <span [class]="corDoStatus(filme.status)">{{ filme.status }}</span>
+          </div>
+          <div class="flex gap-2 mt-4 pt-4 border-t border-slate-100">
+            <button (click)="abrirDetalhes(filme)"
+              class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-lg transition-colors">
+              🎬 Ver detalhes
+            </button>
+            @if (usuario()) {
+            <button (click)="pedirApagar(filme)"
+              class="px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 py-2 rounded-lg transition-colors">🗑</button>
+            }
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+    }
+
+    @if (transacoes().length) {
+    <div class="mt-10 pt-6 border-t border-slate-200">
+      <h3 class="text-base font-bold text-slate-700 mb-3 flex items-center gap-2">🧾 Histórico de pagamentos</h3>
+      <div class="space-y-2">
+        @for (t of transacoes(); track $index) {
+        <div class="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-2">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">{{ t.tipo === 'estorno' ? '💸' : '💳' }}</span>
+            <div>
+              <p class="text-sm font-semibold text-slate-700">{{ t.tipo === 'estorno' ? 'Estorno' : 'Pagamento' }}</p>
+              <p class="text-xs text-slate-400">{{ t.data }}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="text-right">
+              <p class="text-sm font-bold" [class]="t.tipo === 'estorno' ? 'text-emerald-600' : 'text-slate-700'">{{
+                t.tipo === 'estorno' ? '+' : '−' }} {{ t.moeda }} {{ t.valor }}</p>
+              <p class="text-xs text-slate-400">{{ t.status }}</p>
+            </div>
+            <button (click)="apagarTransacao(t.id)" class="text-slate-300 hover:text-red-600 transition-colors text-lg"
+              aria-label="Excluir do histórico">🗑</button>
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+    }
+
+    <div class="mt-10 pt-6 border-t border-slate-200 flex flex-col items-center gap-3">
+      @if (ehPremium()) {
+      <button (click)="pedirEstorno()"
+        class="text-sm text-emerald-600 hover:text-emerald-700 underline transition-colors">
+        Cancelar Premium e solicitar reembolso
+      </button>
+      }
+      <button (click)="pedirCancelarConta()"
+        class="text-sm text-slate-400 hover:text-red-600 underline transition-colors">
+        Cancelar minha conta
+      </button>
+    </div>
+    } @else {
+    <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-center text-indigo-700">
+      👀 Explore os <strong>destaques</strong> acima! <button (click)="abrirAuth('login')"
+        class="underline font-semibold">Entre</button> ou <button (click)="abrirAuth('registro')"
+        class="underline font-semibold">crie uma conta</button> para montar a <strong>sua lista</strong> de filmes.
+    </div>
+    }
+  </main>
+
+  <footer class="bg-slate-900 text-slate-400 py-8 mt-4">
+    <div class="max-w-6xl mx-auto px-4 text-center space-y-3">
+      <div class="flex items-center justify-center gap-2">
+        <span class="text-sm">Powered by</span>
+        <a href="https://www.themoviedb.org" target="_blank" rel="noopener"
+          class="inline-flex items-center gap-1.5 font-bold text-white hover:text-sky-400 transition-colors">
+          <span
+            class="bg-gradient-to-r from-sky-400 to-emerald-400 text-slate-900 text-xs font-extrabold px-2 py-1 rounded">TMDB</span>
+          The Movie Database
+        </a>
+      </div>
+      <p class="text-xs max-w-xl mx-auto">
+        Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.
+        Leia mais sobre a <a href="https://www.themoviedb.org/api-terms-of-use" target="_blank"
+          rel="noopener noreferrer" class="underline hover:text-sky-400 transition-colors">política de uso da API do
+          TMDB</a>.
+      </p>
+      <p class="text-xs text-slate-500 max-w-2xl mx-auto leading-relaxed">
+        Este site foi desenvolvido para fins educativos e projetos com ênfase em Tecnologia da Informação.
+        Todas as imagens, logos, banners e dados adicionais são de responsabilidade de seus respectivos idealizadores,
+        conforme a <a href="https://www.planalto.gov.br/ccivil_03/leis/l9610.htm" target="_blank"
+          rel="noopener noreferrer" class="underline hover:text-sky-400 transition-colors">Lei de Direitos Autorais (Lei
+          nº 9.610/98)</a>.
+      </p>
+      <p class="text-xs text-slate-500">
+        © 2026 Catálogo de Filmes · Santhiago. Todos os direitos reservados.
+      </p>
+      <p class="text-xs text-slate-500 mt-1">
+        <a (click)="abrirPoliticas('privacidade')" class="underline hover:text-sky-400 cursor-pointer">Política de
+          Privacidade</a>
+        ·
+        <a (click)="abrirPoliticas('assinatura')" class="underline hover:text-sky-400 cursor-pointer">Assinatura e
+          Cancelamento</a>
+      </p>
+    </div>
+  </footer>
+
+  @if (assinaturaAberta()) {
+  <div class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" (click)="fecharAssinatura()">
+    <div class="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
+
+      <div class="bg-gradient-to-r from-amber-400 to-amber-600 px-6 py-5 text-center">
+        <div class="text-2xl font-extrabold text-white tracking-tight">🎬 TDMB Movies</div>
+        <div class="text-xs font-bold text-amber-50 tracking-widest uppercase mt-0.5">Premium</div>
+      </div>
+
+      <div class="p-6 text-center">
+        <p class="text-lg font-bold text-slate-800 leading-snug mb-3">Seja Premium e capriche no seu cine home 🍿</p>
+
+        <div class="bg-amber-50 border border-amber-100 rounded-xl p-4 text-left mb-5">
+          <p class="text-sm font-bold text-slate-700 mb-2 text-center">Vantagens de ser um assinante TDMB MovieViewer
+          </p>
+          <ul class="space-y-1.5 text-sm text-slate-600">
+            <li>⭐ Filmes em cartaz e estreias</li>
+            <li>⭐ Área VIP: mais votados e tendências do dia</li>
+            <li>⭐ Selo ✨ Premium exclusivo no seu perfil</li>
+            <li>⭐ Conteúdo exclusivo sempre atualizado</li>
+          </ul>
+        </div>
+
+        @if (assinaturaErro()) {
+        <p class="text-sm text-red-600 mb-3">{{ assinaturaErro() }}</p>
+        <button (click)="assinar()"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors">Tentar
+          de novo</button>
+        } @else if (paypalUrl()) {
+        <button (click)="irParaPaypal()"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors">Continuar
+          para o PayPal →</button>
+        } @else {
+        <button disabled
+          class="w-full bg-slate-300 text-white font-semibold py-3 rounded-lg cursor-not-allowed">Preparando
+          pagamento...</button>
+        }
+
+        <button (click)="fecharAssinatura()" class="mt-3 text-sm text-slate-400 hover:text-slate-600">Agora não</button>
+
+        <p class="text-xs text-slate-400 leading-relaxed mt-5">* Sujeito a alterações de acordo com a <a
+            (click)="abrirPoliticas('privacidade')" class="underline hover:text-indigo-600 cursor-pointer">nossa
+            política</a>. Verifique as vantagens e as <a (click)="abrirPoliticas('assinatura')"
+            class="underline hover:text-indigo-600 cursor-pointer">políticas de uso e cancelamento</a>.</p>
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (pagamentoMsg()) {
+  <div class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-8 text-center">
+      <div class="text-5xl mb-4">💳</div>
+      <p class="text-slate-700 font-medium leading-relaxed">{{ pagamentoMsg() }}</p>
+    </div>
+  </div>
+  }
+
+  @if (filmeSelecionado(); as f) {
+  <div class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" (click)="fecharDetalhes()">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between p-4 border-b border-slate-100 sticky top-0 bg-white">
+        <h2 class="text-xl font-bold text-slate-800">{{ f.titulo }} <span class="text-slate-400 font-normal">({{ f.ano
+            }})</span></h2>
+        <button (click)="fecharDetalhes()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">✕</button>
+      </div>
+      <div class="p-4 space-y-6">
+        @if (f.imagens.length) {
+        <div class="relative rounded-xl overflow-hidden bg-slate-900">
+          <img [src]="f.imagens[imgAtual()]" class="w-full h-64 md:h-80 object-cover">
+          @if (f.imagens.length > 1) {
+          <button (click)="antImg()"
+            class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white w-9 h-9 rounded-full">‹</button>
+          <button (click)="proxImg()"
+            class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white w-9 h-9 rounded-full">›</button>
+          <span class="absolute bottom-2 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">{{ imgAtual() +
+            1 }} / {{ f.imagens.length }}</span>
+          }
+        </div>
+        }
+        <div class="flex flex-wrap items-center gap-2">
+          @if (f.nota) { <span
+            class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-sm font-semibold px-2 py-0.5 rounded-full">⭐
+            {{ f.nota }}</span> }
+          @if (f.classificacao) { <span class="bg-slate-800 text-white text-xs font-bold px-2 py-0.5 rounded">{{
+            f.classificacao }}</span> }
+          @for (g of f.generos; track g) {
+          <span class="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full">{{ g }}</span>
+          }
+        </div>
+        @if (f.sinopse) { <p class="text-slate-600">{{ f.sinopse }}</p> }
+        @if (f.trailers.length) {
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-2">Trailers</h3>
+          <div class="aspect-video rounded-xl overflow-hidden bg-black">
+            <iframe class="w-full h-full" [src]="urlTrailer(f.trailers[trailerAtual()])"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen></iframe>
+          </div>
+          @if (f.trailers.length > 1) {
+          <div class="flex items-center justify-center gap-4 mt-3">
+            <button (click)="antTrailer()" class="bg-slate-100 hover:bg-slate-200 w-9 h-9 rounded-full">‹</button>
+            <span class="text-sm text-slate-500">Trailer {{ trailerAtual() + 1 }} de {{ f.trailers.length }}</span>
+            <button (click)="proxTrailer()" class="bg-slate-100 hover:bg-slate-200 w-9 h-9 rounded-full">›</button>
+          </div>
+          }
+        </div>
+        }
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (authAberto()) {
+  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="fecharAuth()">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-slate-800">{{ authModo() === 'login' ? 'Entrar' : authModo() === 'registro' ?
+          'Criar conta' : authModo() === 'esqueci' ? 'Esqueci minha senha' : 'Nova senha' }}</h2>
+        <button (click)="fecharAuth()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">✕</button>
+      </div>
+
+      @if (authModo() === 'esqueci') {
+      <p class="text-sm text-slate-600 mb-3">Informe o e-mail da sua conta. Vamos enviar um link para você criar uma
+        nova senha.</p>
+      <input [(ngModel)]="authEmail" type="email" placeholder="E-mail da conta" (keyup.enter)="enviarEsqueci()"
+        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      @if (authErro()) {
+      <p class="text-sm text-red-600 mb-3">{{ authErro() }}</p>
+      }
+      @if (authMensagem()) {
+      <p class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3 mb-3">{{ authMensagem() }}</p>
+      }
+      <button (click)="enviarEsqueci()"
+        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition-colors">
+        Enviar link
+      </button>
+      <p class="text-sm text-slate-500 text-center mt-4">
+        Lembrou a senha? <button (click)="abrirAuth('login')"
+          class="text-indigo-600 underline font-semibold">Entrar</button>
+      </p>
+      } @else if (authModo() === 'resetar') {
+      <p class="text-sm text-slate-600 mb-3">Crie uma nova senha para a sua conta.</p>
+      <input [(ngModel)]="authSenha" type="password" placeholder="Nova senha" (keyup.enter)="resetarSenha()"
+        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      <input [(ngModel)]="authSenha2" type="password" placeholder="Confirmar nova senha" (keyup.enter)="resetarSenha()"
+        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      <div class="text-xs mb-3 space-y-1">
+        <p [class]="senhaForte().tamanho ? 'text-green-600' : 'text-slate-400'">{{ senhaForte().tamanho ? '✓' : '○' }}
+          Pelo menos 8 caracteres</p>
+        <p [class]="senhaForte().maiuscula ? 'text-green-600' : 'text-slate-400'">{{ senhaForte().maiuscula ? '✓' : '○'
+          }} Uma letra maiúscula</p>
+        <p [class]="senhaForte().numero ? 'text-green-600' : 'text-slate-400'">{{ senhaForte().numero ? '✓' : '○' }} Um
+          número</p>
+        <p [class]="senhaForte().especial ? 'text-green-600' : 'text-slate-400'">{{ senhaForte().especial ? '✓' : '○' }}
+          Um caractere especial (!&#64;#$...)</p>
+      </div>
+      @if (authErro()) {
+      <p class="text-sm text-red-600 mb-3">{{ authErro() }}</p>
+      }
+      @if (authMensagem()) {
+      <p class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3 mb-3">{{ authMensagem() }}</p>
+      }
+      <button (click)="resetarSenha()"
+        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition-colors">
+        Redefinir senha
+      </button>
+      } @else {
+      <input [(ngModel)]="authUsername" [placeholder]="authModo() === 'login' ? 'Usuário ou e-mail' : 'Usuário'"
+        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      @if (authModo() === 'registro') {
+      <input [(ngModel)]="authEmail" type="email" placeholder="E-mail"
+        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      }
+      <input [(ngModel)]="authSenha" type="password" placeholder="Senha" (keyup.enter)="autenticar()"
+        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      @if (authModo() === 'registro') {
+      <input [(ngModel)]="authSenha2" type="password" placeholder="Confirmar senha" (keyup.enter)="autenticar()"
+        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      <div class="text-xs mb-3 space-y-1">
+        <p [class]="senhaForte().tamanho ? 'text-green-600' : 'text-slate-400'">{{ senhaForte().tamanho ? '✓' : '○' }}
+          Pelo menos 8 caracteres</p>
+        <p [class]="senhaForte().maiuscula ? 'text-green-600' : 'text-slate-400'">{{ senhaForte().maiuscula ? '✓' : '○'
+          }} Uma letra maiúscula</p>
+        <p [class]="senhaForte().numero ? 'text-green-600' : 'text-slate-400'">{{ senhaForte().numero ? '✓' : '○' }} Um
+          número</p>
+        <p [class]="senhaForte().especial ? 'text-green-600' : 'text-slate-400'">{{ senhaForte().especial ? '✓' : '○' }}
+          Um caractere especial (!&#64;#$...)</p>
+      </div>
+      }
+      <div id="turnstile-box" class="mb-3 flex justify-center"></div>
+      @if (authErro()) {
+      <p class="text-sm text-red-600 mb-3">{{ authErro() }}</p>
+      }
+      @if (authMensagem()) {
+      <p class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3 mb-3">{{ authMensagem() }}</p>
+      }
+      <button (click)="autenticar()"
+        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition-colors">
+        {{ authModo() === 'login' ? 'Entrar' : 'Criar conta' }}
+      </button>
+      <p class="text-sm text-slate-500 text-center mt-4">
+        @if (authModo() === 'login') {
+        Não tem conta? <button (click)="abrirAuth('registro')" class="text-indigo-600 underline font-semibold">Criar
+          conta</button>
+        <br>
+        <button (click)="abrirAuth('esqueci')"
+          class="text-slate-400 hover:text-indigo-600 underline mt-2 inline-block">Esqueci minha senha</button>
+        } @else {
+        Já tem conta? <button (click)="abrirAuth('login')"
+          class="text-indigo-600 underline font-semibold">Entrar</button>
+        }
+      </p>
+      }
+    </div>
+  </div>
+  }
+
+  @if (filmeParaApagar(); as f) {
+  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="cancelarApagar()">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6" (click)="$event.stopPropagation()">
+      <h2 class="text-lg font-bold text-slate-800 mb-2">Excluir filme?</h2>
+      <p class="text-sm text-slate-600 mb-5">Tem certeza de que deseja excluir <strong>{{ f.titulo }}</strong> da sua
+        lista?</p>
+      <div class="flex gap-3">
+        <button (click)="cancelarApagar()"
+          class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2 rounded-lg transition-colors">Cancelar</button>
+        <button (click)="confirmarApagar()"
+          class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition-colors">Excluir</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (sairAberto()) {
+  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="fecharSair()">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6" (click)="$event.stopPropagation()">
+      <h2 class="text-lg font-bold text-slate-800 mb-2">Sair da conta?</h2>
+      <p class="text-sm text-slate-600 mb-5">Tem certeza de que deseja sair?</p>
+      <div class="flex gap-3">
+        <button (click)="fecharSair()"
+          class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2 rounded-lg transition-colors">Cancelar</button>
+        <button (click)="confirmarSair()"
+          class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition-colors">Sair</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (contaAberta()) {
+  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="fecharCancelarConta()">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6" (click)="$event.stopPropagation()">
+      <h2 class="text-lg font-bold text-red-600 mb-2">⚠️ Cancelar minha conta</h2>
+      <p class="text-sm text-slate-600 mb-5">Isso vai apagar <strong>permanentemente</strong> a sua conta e toda a sua
+        lista de filmes. Essa ação não pode ser desfeita.</p>
+      <div class="flex gap-3">
+        <button (click)="fecharCancelarConta()"
+          class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2 rounded-lg transition-colors">Voltar</button>
+        <button (click)="confirmarCancelarConta()"
+          class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition-colors">Cancelar
+          conta</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (estornoAberto()) {
+  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="fecharEstorno()">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6" (click)="$event.stopPropagation()">
+      <h2 class="text-lg font-bold text-emerald-600 mb-2">💸 Cancelar Premium e reembolsar?</h2>
+      <p class="text-sm text-slate-600 mb-4">Vamos <strong>estornar</strong> o valor da assinatura (R$ 19,90) pela mesma
+        forma de pagamento e voltar sua conta ao <strong>plano gratuito</strong> — tudo num passo só.</p>
+      @if (estornoMsg()) {
+      <p class="text-sm text-red-600 mb-3">{{ estornoMsg() }}</p>
+      }
+      <div class="flex gap-3">
+        <button (click)="fecharEstorno()"
+          class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2 rounded-lg transition-colors">Voltar</button>
+        <button (click)="confirmarEstorno()"
+          class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg transition-colors">Confirmar
+          estorno</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <a href="https://wa.me/55SEUNUMERO" target="_blank" rel="noopener noreferrer"
+    class="fixed bottom-24 left-5 z-40 bg-green-500 hover:bg-green-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-colors"
+    aria-label="WhatsApp">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M20 4H4a2 2 0 0 0-2 2v16l4-4h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+    </svg>
+  </a>
+
+  <button (click)="abrirCookies()"
+    class="fixed bottom-5 left-5 z-40 bg-amber-500 hover:bg-amber-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl transition-colors"
+    aria-label="Cookies">🍪</button>
+
+  @if (cookieBanner()) {
+  <div class="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-lg p-4">
+    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-4">
+      <p class="text-sm text-slate-600 flex-1">
+        🍪 Usamos cookies para melhorar sua experiência. Leia mais sobre nossas
+        <a href="#" class="text-indigo-600 underline">políticas de privacidade</a>.
+        Você pode desfazer a qualquer momento.
+      </p>
+      <div class="flex gap-2 shrink-0">
+        <button (click)="abrirCookies()"
+          class="text-sm px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">Preferências</button>
+        <button (click)="aceitarTodosCookies()"
+          class="text-sm px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">Aceitar
+          todos</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (cookieAberto()) {
+  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="fecharCookies()">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-slate-800">🍪 Preferências de cookies</h2>
+        <button (click)="fecharCookies()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">✕</button>
+      </div>
+      <p class="text-sm text-slate-500 mb-4">Você pode desfazer a qualquer momento.</p>
+      <div class="flex items-center justify-between py-3 border-b border-slate-100">
+        <div>
+          <p class="font-medium text-slate-800">Necessários</p>
+          <p class="text-xs text-slate-500">Essenciais para o site funcionar</p>
+        </div>
+        <span class="text-xs text-slate-400 font-medium">Sempre ativo</span>
+      </div>
+      <div class="flex items-center justify-between py-3 border-b border-slate-100">
+        <div>
+          <p class="font-medium text-slate-800">Analíticos</p>
+          <p class="text-xs text-slate-500">Ajudam a entender o uso do site</p>
+        </div>
+        <button (click)="toggleAnalytics()" class="relative w-11 h-6 rounded-full transition-colors"
+          [class.bg-indigo-600]="analytics()" [class.bg-slate-300]="!analytics()">
+          <span class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition-transform"
+            [class.translate-x-5]="analytics()" [class.translate-x-0]="!analytics()"></span>
+        </button>
+      </div>
+      <div class="flex items-center justify-between py-3 border-b border-slate-100">
+        <div>
+          <p class="font-medium text-slate-800">Marketing</p>
+          <p class="text-xs text-slate-500">Personalizam anúncios</p>
+        </div>
+        <button (click)="toggleMarketing()" class="relative w-11 h-6 rounded-full transition-colors"
+          [class.bg-indigo-600]="marketing()" [class.bg-slate-300]="!marketing()">
+          <span class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition-transform"
+            [class.translate-x-5]="marketing()" [class.translate-x-0]="!marketing()"></span>
+        </button>
+      </div>
+      <button (click)="salvarCookies()"
+        class="w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition-colors">
+        Salvar preferências
+      </button>
+    </div>
+  </div>
+  }
+
+  @if (politicasAberto()) {
+  <div class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" (click)="fecharPoliticas()">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden"
+      (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+        <h2 class="text-lg font-bold text-slate-800">📜 Diretrizes e Políticas</h2>
+        <button (click)="fecharPoliticas()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">✕</button>
+      </div>
+
+      <div class="flex border-b border-slate-200">
+        <button (click)="politicaAba.set('privacidade')"
+          [class]="politicaAba() === 'privacidade' ? 'flex-1 py-3 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600' : 'flex-1 py-3 text-sm font-semibold text-slate-400 hover:text-slate-600'">
+          🔒 Privacidade
+        </button>
+        <button (click)="politicaAba.set('assinatura')"
+          [class]="politicaAba() === 'assinatura' ? 'flex-1 py-3 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600' : 'flex-1 py-3 text-sm font-semibold text-slate-400 hover:text-slate-600'">
+          💳 Assinatura
+        </button>
+        <button (click)="politicaAba.set('contato')"
+          [class]="politicaAba() === 'contato' ? 'flex-1 py-3 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600' : 'flex-1 py-3 text-sm font-semibold text-slate-400 hover:text-slate-600'">
+          📩 Contato
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto text-sm text-slate-600 leading-relaxed space-y-3">
+        @if (politicaAba() === 'privacidade') {
+        <p class="text-xs text-slate-400">Última atualização: outubro de 2026</p>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">1. Quem somos</h3>
+          <p>A TDMB Movies é uma plataforma de catálogo de filmes. Levamos a sua privacidade a sério, e esta política
+            explica de forma transparente como tratamos os seus dados.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">2. Dados que coletamos</h3>
+          <p>Coletamos apenas o necessário para a sua conta: nome de usuário, e-mail e senha. A senha é guardada de
+            forma criptografada (hash bcrypt) — nunca armazenamos a sua senha em texto puro.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">3. Como usamos seus dados</h3>
+          <p>Usamos seus dados para autenticar seu acesso, enviar e-mails essenciais (confirmação de cadastro,
+            redefinição de senha e confirmação de assinatura) e aprimorar a sua experiência.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">4. Segurança</h3>
+          <p>Protegemos sua conta com senhas criptografadas, verificação contra senhas que já vazaram publicamente e
+            links de redefinição de uso único. Não vendemos nem compartilhamos os seus dados com terceiros.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">5. Pagamentos</h3>
+          <p>As assinaturas são processadas pelo PayPal. Não temos acesso aos dados do seu cartão — eles permanecem
+            exclusivamente com o PayPal.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">6. Seus direitos (LGPD)</h3>
+          <p>Conforme a Lei Geral de Proteção de Dados, você pode acessar, corrigir ou excluir seus dados a qualquer
+            momento. O cancelamento da conta remove seus dados da nossa base.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">7. Contato</h3>
+          <p>Dúvidas sobre privacidade? Use a aba <strong>📩 Contato</strong> ou escreva para <span
+              class="text-indigo-600">privacidade&#64;tdmbmovies.dev</span>.</p>
+        </div>
+        } @else if (politicaAba() === 'assinatura') {
+        <p class="text-xs text-slate-400">Última atualização: outubro de 2026</p>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">1. O plano Premium</h3>
+          <p>A assinatura Premium (TDMB MovieViewer) dá acesso à Área VIP — filmes em cartaz, os mais votados,
+            tendências do dia e conteúdo exclusivo — além do selo ✨ Premium no seu perfil.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">2. Valor e pagamento</h3>
+          <p>A assinatura custa R$ 19,90, processada com segurança via PayPal. O acesso Premium é liberado assim que o
+            pagamento é confirmado.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">3. Cancelamento</h3>
+          <p>Você pode cancelar quando quiser, diretamente na sua conta, sem burocracia e sem multa. Pode voltar ao
+            plano gratuito mantendo a conta, ou excluir a conta por completo.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">4. Reembolso</h3>
+          <p>Conforme o Código de Defesa do Consumidor, você tem até 7 dias após a contratação para solicitar o
+            reembolso integral (direito de arrependimento).</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">5. Alterações</h3>
+          <p>Podemos atualizar vantagens, valores e condições. Mudanças relevantes serão comunicadas com antecedência, e
+            o valor vigente é sempre o exibido no momento da assinatura.</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800 mb-1">6. Contato</h3>
+          <p>Precisa de ajuda com a sua assinatura? Use a aba <strong>📩 Contato</strong> ou escreva para <span
+              class="text-indigo-600">suporte&#64;tdmbmovies.dev</span>.</p>
+        </div>
+        } @else {
+        <p class="text-slate-600">Fale com a equipe <strong>TDMB Movies</strong>. Sua mensagem é enviada direto para o
+          nosso suporte. 📬</p>
+        <input [(ngModel)]="contatoNome" placeholder="Seu nome"
+          class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <input [(ngModel)]="contatoEmail" type="email" placeholder="Seu e-mail"
+          class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <textarea [(ngModel)]="contatoMensagem" rows="4" placeholder="Sua mensagem"
+          class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"></textarea>
+        @if (contatoErro()) {
+        <p class="text-sm text-red-600">{{ contatoErro() }}</p>
+        }
+        @if (contatoMsg()) {
+        <p class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">{{ contatoMsg() }}</p>
+        }
+        <button (click)="enviarContato()"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition-colors">
+          Enviar mensagem
+        </button>
+        }
+      </div>
+
+      <div class="px-6 py-3 border-t border-slate-200 text-center">
+        <p class="text-xs text-slate-400">Projeto acadêmico de portfólio · Pagamentos em ambiente sandbox do PayPal (sem
+          cobrança real).</p>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- ===================== Chatbot (bolha + janela) ===================== -->
+  @if (!chatAberto()) {
+  <button (click)="abrirChat()" title="Fale com o assistente"
+    class="fixed z-50 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg flex items-center justify-center text-2xl transition-colors"
+    style="bottom:1.25rem; right:1.25rem; width:3.5rem; height:3.5rem;">
+    💬
+  </button>
+  }
+
+  @if (chatAberto()) {
+  <div class="fixed z-50 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200"
+    style="bottom:1.25rem; right:1.25rem; width:22rem; max-width:calc(100vw - 2rem); height:32rem; max-height:calc(100vh - 2.5rem);">
+
+    <!-- header -->
+    <div class="bg-indigo-600 text-white px-4 py-3 flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🎬</span>
+        <div class="leading-tight">
+          <p class="font-semibold text-sm">Assistente MOVIES TMDA</p>
+          <p class="text-xs text-indigo-200">Online · responde na hora</p>
+        </div>
+      </div>
+      <button (click)="fecharChat()" class="text-indigo-200 hover:text-white text-xl leading-none">✕</button>
+    </div>
+
+    <!-- mensagens -->
+    <div id="chatScroll" class="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50">
+      @for (m of chatMensagens(); track $index) {
+      <div class="flex" [class.justify-end]="m.role === 'user'">
+        <div class="px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap border" style="max-width:80%;"
+          [class.bg-indigo-600]="m.role === 'user'" [class.text-white]="m.role === 'user'"
+          [class.border-indigo-600]="m.role === 'user'" [class.bg-white]="m.role !== 'user'"
+          [class.text-slate-700]="m.role !== 'user'" [class.border-slate-200]="m.role !== 'user'">
+          {{ m.content }}
+        </div>
+      </div>
+      }
+      @if (chatCarregando()) {
+      <div class="flex">
+        <div class="bg-white text-slate-400 border border-slate-200 px-3 py-2 rounded-2xl text-sm italic">
+          digitando…
+        </div>
+      </div>
+      }
+    </div>
+
+    <!-- input -->
+    <div class="p-2 border-t border-slate-200 bg-white flex gap-2 shrink-0">
+      <input [(ngModel)]="chatTexto" (keyup.enter)="enviarChat()" [disabled]="chatCarregando()"
+        placeholder="Digite sua pergunta…"
+        class="flex-1 px-3 py-2 rounded-full border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      <button (click)="enviarChat()" [disabled]="chatCarregando() || !chatTexto.trim()"
+        class="rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center disabled:opacity-40 transition-colors"
+        style="width:2.5rem; height:2.5rem;">
+        ➤
+      </button>
+    </div>
+  </div>
+  }
+
+</div>
+
+<!--TESTE PARA BUILD DE FORMA RAPIDA APOS DESATIVAÇÃO DE KUBERNETES -->

@@ -1,0 +1,29 @@
+\# ===== Node / Angular =====
+node_modules/
+dist/
+.angular/
+*.log
+npm-debug.log*
+
+# ===== Python =====
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ===== Secrets — NUNCA commitar valores reais! =====
+# os arquivos de secret com senhas ficam só na sua máquina;
+# no repo vai só o modelo (*.example)
+k8s/*-secret.yaml
+!k8s/*-secret.yaml.example
+.env
+*.env
+
+# ===== Sistema / IDE =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ===== Backups =====
+*.bak

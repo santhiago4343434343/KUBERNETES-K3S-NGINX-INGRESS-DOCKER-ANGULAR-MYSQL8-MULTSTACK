@@ -1,10 +1,25 @@
+
 <div class="min-h-screen bg-slate-50">
+
+  <!-- ícones de olho (aberto/fechado) definidos UMA vez e reusados nos campos de senha -->
+  <svg width="0" height="0" class="hidden" aria-hidden="true">
+    <symbol id="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3.5 12C7 7 17 7 20.5 12 17 17 7 17 3.5 12Z"/>
+      <circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/>
+      <path d="M12 7V4M9.3 7.4 8.5 4.7M14.7 7.4 15.5 4.7M6.6 8.6 5.4 6.2M17.4 8.6 18.6 6.2"/>
+      <path d="M12 17v3M9.3 16.6 8.5 19.3M14.7 16.6 15.5 19.3M6.6 15.4 5.4 17.8M17.4 15.4 18.6 17.8"/>
+    </symbol>
+    <symbol id="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 10.5C7.5 15 16.5 15 20 10.5"/>
+      <path d="M6 13.8 4.8 16.2M9.3 15 8.7 17.6M12 15.4V18.2M14.7 15 15.3 17.6M18 13.8 19.2 16.2"/>
+    </symbol>
+  </svg>
 
   <header class="bg-indigo-700 text-white py-6 shadow-md">
     <div class="max-w-6xl mx-auto px-4 flex items-center justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold">🎬 Catálogo de Filmes</h1>
-        <p class="text-indigo-200 mt-1">powered by TDmovies platform technology</p>
+        <h1 class="text-3xl font-bold">🎬 MOVIES TMDA</h1>
+        <p class="text-indigo-200 mt-1">Catálogo de Filmes</p>
       </div>
       <div class="shrink-0">
         @if (usuario()) {
@@ -127,7 +142,7 @@
     }
     <h2 class="text-2xl font-bold text-slate-800 mb-4">🔎 Buscar filmes</h2>
     <div class="bg-white rounded-2xl shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3">
-      <input [(ngModel)]="termoBusca" (keyup.enter)="buscar()" placeholder="Busque um filme (ex.: Interestelar)"
+      <input [(ngModel)]="termoBusca" (input)="buscarAoDigitar()" (keyup.enter)="buscar()" placeholder="Busque um filme (ex.: Interestelar)"
         class="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
       <select [(ngModel)]="novoStatus"
         class="border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
@@ -233,7 +248,9 @@
                 t.tipo === 'estorno' ? '+' : '−' }} {{ t.moeda }} {{ t.valor }}</p>
               <p class="text-xs text-slate-400">{{ t.status }}</p>
             </div>
-            <button (click)="apagarTransacao(t.id)" class="text-slate-300 hover:text-red-600 transition-colors text-lg"
+            <button (click)="baixarComprovante(t)" class="text-slate-300 hover:text-indigo-600 transition-colors text-lg"
+              aria-label="Baixar comprovante" title="Baixar comprovante (PDF)">📄</button>
+            <button (click)="pedirApagarTransacao(t)" class="text-slate-300 hover:text-red-600 transition-colors text-lg"
               aria-label="Excluir do histórico">🗑</button>
           </div>
         </div>
@@ -288,7 +305,7 @@
           nº 9.610/98)</a>.
       </p>
       <p class="text-xs text-slate-500">
-        © 2026 Catálogo de Filmes · Santhiago. Todos os direitos reservados.
+        © 2026 MOVIES TMDA · Santhiago. Todos os direitos reservados.
       </p>
       <p class="text-xs text-slate-500 mt-1">
         <a (click)="abrirPoliticas('privacidade')" class="underline hover:text-sky-400 cursor-pointer">Política de
@@ -305,7 +322,7 @@
     <div class="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
 
       <div class="bg-gradient-to-r from-amber-400 to-amber-600 px-6 py-5 text-center">
-        <div class="text-2xl font-extrabold text-white tracking-tight">🎬 TDMB Movies</div>
+        <div class="text-2xl font-extrabold text-white tracking-tight">🎬 MOVIES TMDA</div>
         <div class="text-xs font-bold text-amber-50 tracking-widest uppercase mt-0.5">Premium</div>
       </div>
 
@@ -313,7 +330,7 @@
         <p class="text-lg font-bold text-slate-800 leading-snug mb-3">Seja Premium e capriche no seu cine home 🍿</p>
 
         <div class="bg-amber-50 border border-amber-100 rounded-xl p-4 text-left mb-5">
-          <p class="text-sm font-bold text-slate-700 mb-2 text-center">Vantagens de ser um assinante TDMB MovieViewer
+          <p class="text-sm font-bold text-slate-700 mb-2 text-center">Vantagens de ser um assinante MOVIES TMDA Premium
           </p>
           <ul class="space-y-1.5 text-sm text-slate-600">
             <li>⭐ Filmes em cartaz e estreias</li>
@@ -418,7 +435,8 @@
     <div class="bg-white rounded-2xl max-w-sm w-full p-6" (click)="$event.stopPropagation()">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-bold text-slate-800">{{ authModo() === 'login' ? 'Entrar' : authModo() === 'registro' ?
-          'Criar conta' : authModo() === 'esqueci' ? 'Esqueci minha senha' : 'Nova senha' }}</h2>
+          'Criar conta' : authModo() === 'esqueci' ? 'Esqueci minha senha' : authModo() === 'reenviar' ? 'Reenviar
+          confirmação' : 'Nova senha' }}</h2>
         <button (click)="fecharAuth()" class="text-slate-400 hover:text-slate-700 text-2xl leading-none">✕</button>
       </div>
 
@@ -441,12 +459,43 @@
         Lembrou a senha? <button (click)="abrirAuth('login')"
           class="text-indigo-600 underline font-semibold">Entrar</button>
       </p>
+      } @else if (authModo() === 'reenviar') {
+      <p class="text-sm text-slate-600 mb-3">Informe o e-mail da sua conta. Vamos reenviar o link de confirmação de
+        cadastro.</p>
+      <input [(ngModel)]="authEmail" type="email" placeholder="E-mail da conta" (keyup.enter)="reenviarConfirmacao()"
+        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      @if (authErro()) {
+      <p class="text-sm text-red-600 mb-3">{{ authErro() }}</p>
+      }
+      @if (authMensagem()) {
+      <p class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3 mb-3">{{ authMensagem() }}</p>
+      }
+      <button (click)="reenviarConfirmacao()"
+        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition-colors">
+        Reenviar confirmação
+      </button>
+      <p class="text-sm text-slate-500 text-center mt-4">
+        Já confirmou? <button (click)="abrirAuth('login')"
+          class="text-indigo-600 underline font-semibold">Entrar</button>
+      </p>
       } @else if (authModo() === 'resetar') {
       <p class="text-sm text-slate-600 mb-3">Crie uma nova senha para a sua conta.</p>
-      <input [(ngModel)]="authSenha" type="password" placeholder="Nova senha" (keyup.enter)="resetarSenha()"
-        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
-      <input [(ngModel)]="authSenha2" type="password" placeholder="Confirmar nova senha" (keyup.enter)="resetarSenha()"
-        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      <div class="relative mb-3">
+        <input [(ngModel)]="authSenha" [type]="mostrarSenha() ? 'text' : 'password'" placeholder="Nova senha" (keyup.enter)="resetarSenha()"
+          class="w-full border border-slate-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <button type="button" (click)="mostrarSenha.set(!mostrarSenha())" tabindex="-1"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5"><use [attr.href]="mostrarSenha() ? '#icon-eye' : '#icon-eye-off'"></use></svg>
+        </button>
+      </div>
+      <div class="relative mb-3">
+        <input [(ngModel)]="authSenha2" [type]="mostrarSenha() ? 'text' : 'password'" placeholder="Confirmar nova senha" (keyup.enter)="resetarSenha()"
+          class="w-full border border-slate-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <button type="button" (click)="mostrarSenha.set(!mostrarSenha())" tabindex="-1"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5"><use [attr.href]="mostrarSenha() ? '#icon-eye' : '#icon-eye-off'"></use></svg>
+        </button>
+      </div>
       <div class="text-xs mb-3 space-y-1">
         <p [class]="senhaForte().tamanho ? 'text-green-600' : 'text-slate-400'">{{ senhaForte().tamanho ? '✓' : '○' }}
           Pelo menos 8 caracteres</p>
@@ -474,11 +523,23 @@
       <input [(ngModel)]="authEmail" type="email" placeholder="E-mail"
         class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
       }
-      <input [(ngModel)]="authSenha" type="password" placeholder="Senha" (keyup.enter)="autenticar()"
-        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      <div class="relative mb-3">
+        <input [(ngModel)]="authSenha" [type]="mostrarSenha() ? 'text' : 'password'" placeholder="Senha" (keyup.enter)="autenticar()"
+          class="w-full border border-slate-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <button type="button" (click)="mostrarSenha.set(!mostrarSenha())" tabindex="-1"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5"><use [attr.href]="mostrarSenha() ? '#icon-eye' : '#icon-eye-off'"></use></svg>
+        </button>
+      </div>
       @if (authModo() === 'registro') {
-      <input [(ngModel)]="authSenha2" type="password" placeholder="Confirmar senha" (keyup.enter)="autenticar()"
-        class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+      <div class="relative mb-3">
+        <input [(ngModel)]="authSenha2" [type]="mostrarSenha() ? 'text' : 'password'" placeholder="Confirmar senha" (keyup.enter)="autenticar()"
+          class="w-full border border-slate-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <button type="button" (click)="mostrarSenha.set(!mostrarSenha())" tabindex="-1"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5"><use [attr.href]="mostrarSenha() ? '#icon-eye' : '#icon-eye-off'"></use></svg>
+        </button>
+      </div>
       <div class="text-xs mb-3 space-y-1">
         <p [class]="senhaForte().tamanho ? 'text-green-600' : 'text-slate-400'">{{ senhaForte().tamanho ? '✓' : '○' }}
           Pelo menos 8 caracteres</p>
@@ -508,6 +569,9 @@
         <br>
         <button (click)="abrirAuth('esqueci')"
           class="text-slate-400 hover:text-indigo-600 underline mt-2 inline-block">Esqueci minha senha</button>
+        <br>
+        <button (click)="abrirAuth('reenviar')"
+          class="text-slate-400 hover:text-indigo-600 underline mt-2 inline-block">Reenviar e-mail de confirmação</button>
         } @else {
         Já tem conta? <button (click)="abrirAuth('login')"
           class="text-indigo-600 underline font-semibold">Entrar</button>
@@ -528,6 +592,22 @@
         <button (click)="cancelarApagar()"
           class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2 rounded-lg transition-colors">Cancelar</button>
         <button (click)="confirmarApagar()"
+          class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition-colors">Excluir</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (transacaoParaApagar(); as t) {
+  <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" (click)="cancelarApagarTransacao()">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6" (click)="$event.stopPropagation()">
+      <h2 class="text-lg font-bold text-slate-800 mb-2">Excluir do histórico?</h2>
+      <p class="text-sm text-slate-600 mb-5">Você excluirá o item selecionado — esta ação <strong>não pode ser
+        desfeita</strong>. Tem certeza de que deseja excluir?</p>
+      <div class="flex gap-3">
+        <button (click)="cancelarApagarTransacao()"
+          class="flex-1 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold py-2 rounded-lg transition-colors">Cancelar</button>
+        <button (click)="confirmarApagarTransacao()"
           class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition-colors">Excluir</button>
       </div>
     </div>
@@ -586,7 +666,7 @@
   </div>
   }
 
-  <a href="https://wa.me/55SEUNUMERO" target="_blank" rel="noopener noreferrer"
+  <a href="https://wa.me/5513991889820" target="_blank" rel="noopener noreferrer"
     class="fixed bottom-24 left-5 z-40 bg-green-500 hover:bg-green-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-colors"
     aria-label="WhatsApp">
     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 24 24">
@@ -603,7 +683,8 @@
     <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-4">
       <p class="text-sm text-slate-600 flex-1">
         🍪 Usamos cookies para melhorar sua experiência. Leia mais sobre nossas
-        <a href="#" class="text-indigo-600 underline">políticas de privacidade</a>.
+        <a (click)="abrirPoliticas('privacidade')" class="text-indigo-600 underline cursor-pointer">políticas de
+          privacidade</a>.
         Você pode desfazer a qualquer momento.
       </p>
       <div class="flex gap-2 shrink-0">
@@ -691,7 +772,7 @@
         <p class="text-xs text-slate-400">Última atualização: outubro de 2026</p>
         <div>
           <h3 class="font-bold text-slate-800 mb-1">1. Quem somos</h3>
-          <p>A TDMB Movies é uma plataforma de catálogo de filmes. Levamos a sua privacidade a sério, e esta política
+          <p>A MOVIES TMDA é uma plataforma de catálogo de filmes. Levamos a sua privacidade a sério, e esta política
             explica de forma transparente como tratamos os seus dados.</p>
         </div>
         <div>
@@ -728,7 +809,7 @@
         <p class="text-xs text-slate-400">Última atualização: outubro de 2026</p>
         <div>
           <h3 class="font-bold text-slate-800 mb-1">1. O plano Premium</h3>
-          <p>A assinatura Premium (TDMB MovieViewer) dá acesso à Área VIP — filmes em cartaz, os mais votados,
+          <p>A assinatura Premium (MOVIES TMDA Premium) dá acesso à Área VIP — filmes em cartaz, os mais votados,
             tendências do dia e conteúdo exclusivo — além do selo ✨ Premium no seu perfil.</p>
         </div>
         <div>
@@ -757,7 +838,7 @@
               class="text-indigo-600">suporte&#64;tdmbmovies.dev</span>.</p>
         </div>
         } @else {
-        <p class="text-slate-600">Fale com a equipe <strong>TDMB Movies</strong>. Sua mensagem é enviada direto para o
+        <p class="text-slate-600">Fale com a equipe <strong>MOVIES TMDA</strong>. Sua mensagem é enviada direto para o
           nosso suporte. 📬</p>
         <input [(ngModel)]="contatoNome" placeholder="Seu nome"
           class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400">
@@ -846,6 +927,28 @@
   </div>
   }
 
-</div>
+  <!-- Página 404 (caminho desconhecido) -->
+  @if (paginaNaoEncontrada()) {
+  <div class="fixed inset-0 z-50 bg-slate-50 flex items-center justify-center p-6">
+    <div class="text-center max-w-md">
+      <div class="text-7xl mb-4">🎬</div>
+      <h1 class="text-6xl font-extrabold text-indigo-600 mb-2">404</h1>
+      <p class="text-xl font-semibold text-slate-800 mb-1">Página não encontrada</p>
+      <p class="text-sm text-slate-500 mb-6">Esse endereço não existe no MOVIES TMDA. Vamos te levar de volta ao
+        catálogo.</p>
+      <button (click)="voltarInicio()"
+        class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors">
+        ← Voltar ao início
+      </button>
+    </div>
+  </div>
+  }
 
-<!--TESTE PARA BUILD DE FORMA RAPIDA APOS DESATIVAÇÃO DE KUBERNETES -->
+  <!-- Toast de aviso (ex.: filme adicionado à lista) -->
+  @if (toast()) {
+  <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium">
+    {{ toast() }}
+  </div>
+  }
+
+</div>

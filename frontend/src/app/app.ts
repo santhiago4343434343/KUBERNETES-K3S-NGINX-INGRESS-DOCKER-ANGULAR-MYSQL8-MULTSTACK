@@ -32,7 +32,11 @@ export class App {
   termoBusca = '';
   resultados = signal<any[]>([]);
   buscando = signal(false);
+  toast = signal('');                 // aviso rapido (ex.: "filme adicionado")
+  private toastTimer: any = null;
+  private buscaTimer: any = null;     // debounce da busca ao vivo
   filmeParaApagar = signal<Filme | null>(null);
+  transacaoParaApagar = signal<any | null>(null);   // confirmação de exclusão no histórico
 
   filmeSelecionado = signal<Filme | null>(null);
   imgAtual = signal(0);
@@ -73,12 +77,14 @@ export class App {
   sairAberto = signal(false);
   contaAberta = signal(false);
   authAberto = signal(false);
-  authModo = signal<'login' | 'registro' | 'esqueci' | 'resetar'>('login');
+  authModo = signal<'login' | 'registro' | 'esqueci' | 'resetar' | 'reenviar'>('login');
   resetToken = signal('');
   authUsername = '';
   authEmail = '';
   authSenha = '';
   authSenha2 = '';
+  mostrarSenha = signal(false);       // olhinho: mostra/oculta a senha enquanto digita
+  paginaNaoEncontrada = signal(false);  // telinha 404 para caminhos desconhecidos
   authErro = signal('');
   authMensagem = signal('');
   turnstileToken = signal('');
@@ -112,6 +118,32 @@ export class App {
     this.checarConfirmacao();
     this.checarPagamento();
     this.checarReset();
+    if (window.location.pathname !== '/') {   // caminho desconhecido -> telinha 404
+      this.paginaNaoEncontrada.set(true);
+    }
+  }
+
+  voltarInicio() {
+    window.history.replaceState({}, '', '/');   // limpa a URL
+    this.paginaNaoEncontrada.set(false);         // sai do 404 e mostra o catálogo
+  }
+
+  // ---------- Helpers de requisição (DRY) ----------
+  // monta os headers com o token num lugar só (se um dia trocar o storage, muda aqui e pronto)
+  private authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+    const token = localStorage.getItem('token') || '';
+    return { 'Authorization': 'Bearer ' + token, ...extra };
+  }
+
+  // se o token expirou (401), desloga e pede login — em vez de mostrar lista vazia sem explicar
+  private sessaoExpirou(r: Response): boolean {
+    if (r.status === 401 && this.usuario()) {
+      this.sair();
+      this.abrirAuth('login');
+      this.authErro.set('Sua sessão expirou. Entre de novo.');
+      return true;
+    }
+    return false;
   }
 
   checarConfirmacao() {
@@ -137,9 +169,9 @@ export class App {
 
   carregar() {
     fetch('/api/filmes', {
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+      headers: this.authHeaders(),
     })
-      .then(r => (r.ok ? r.json() : []))
+      .then(r => { if (this.sessaoExpirou(r)) return []; return r.ok ? r.json() : []; })
       .then(dados => this.filmes.set(dados))
       .catch(() => this.filmes.set([]));
     this.carregarTransacoes();
@@ -147,9 +179,9 @@ export class App {
 
   carregarTransacoes() {
     fetch('/api/transacoes', {
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+      headers: this.authHeaders(),
     })
-      .then(r => (r.ok ? r.json() : []))
+      .then(r => { if (this.sessaoExpirou(r)) return []; return r.ok ? r.json() : []; })
       .then(dados => this.transacoes.set(dados))
       .catch(() => this.transacoes.set([]));
   }
@@ -163,21 +195,21 @@ export class App {
 
   checarPremium() {
     fetch('/api/me', {
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+      headers: this.authHeaders(),
     })
-      .then(r => (r.ok ? r.json() : null))
+      .then(r => { if (this.sessaoExpirou(r)) return null; return r.ok ? r.json() : null; })
       .then(dados => {
         this.ehPremium.set(!!(dados && dados.premium));
         if (this.ehPremium()) this.carregarPremium();
       })
-      .catch(() => {});
+      .catch(() => { });
   }
 
   carregarPremium() {
     fetch('/api/premium/filmes', {
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+      headers: this.authHeaders(),
     })
-      .then(r => (r.ok ? r.json() : {}))
+      .then(r => { if (this.sessaoExpirou(r)) return {}; return r.ok ? r.json() : {}; })
       .then(dados => this.premiumFilmes.set(dados))
       .catch(() => this.premiumFilmes.set({}));
   }
@@ -189,7 +221,7 @@ export class App {
     this.assinaturaAberta.set(true);
     fetch('/api/assinar', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+      headers: this.authHeaders(),
     })
       .then(r => (r.ok ? r.json() : null))
       .then(dados => {
@@ -235,10 +267,7 @@ export class App {
     this.pagamentoMsg.set('Confirmando seu pagamento...');
     fetch('/api/confirmar-pagamento', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''),
-      },
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ order_id: orderId }),
     })
       .then(r => (r.ok ? r.json() : null))
@@ -282,22 +311,47 @@ export class App {
     if (!q) return;
     this.buscando.set(true);
     fetch('/api/buscar?q=' + encodeURIComponent(q), {
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+      headers: this.authHeaders(),
     })
-      .then(r => (r.ok ? r.json() : []))
+      .then(r => { if (this.sessaoExpirou(r)) return []; return r.ok ? r.json() : []; })
       .then(dados => { this.resultados.set(dados); this.buscando.set(false); })
       .catch(() => { this.resultados.set([]); this.buscando.set(false); });
+  }
+
+  // busca ao vivo: dispara sozinha 400ms depois que o usuario para de digitar (debounce)
+  buscarAoDigitar() {
+    clearTimeout(this.buscaTimer);
+    if (!this.termoBusca.trim()) {        // campo vazio -> limpa a grade na hora
+      this.resultados.set([]);
+      this.buscando.set(false);
+      return;
+    }
+    this.buscaTimer = setTimeout(() => this.buscar(), 400);
   }
 
   adicionarFilme(r: any) {
     fetch('/api/filmes', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''),
-      },
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ tmdb_id: r.id, titulo: r.titulo, status: this.novoStatus }),
-    }).then(() => this.carregar());
+    })
+      .then(resp => {
+        if (this.sessaoExpirou(resp)) return;
+        if (resp.ok) {
+          this.mostrarToast('✅ "' + r.titulo + '" adicionado à sua lista!');
+          this.carregar();
+        } else {
+          this.mostrarToast('❌ Não foi possível adicionar. Tente de novo.');
+        }
+      })
+      .catch(() => this.mostrarToast('❌ Erro de conexão. Tente de novo.'));
+  }
+
+  // mostra um aviso curto no rodape e some sozinho depois de ~2.8s
+  private mostrarToast(msg: string) {
+    this.toast.set(msg);
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => this.toast.set(''), 2800);
   }
 
   pedirApagar(filme: Filme) { this.filmeParaApagar.set(filme); }
@@ -307,7 +361,7 @@ export class App {
     if (!f) return;
     fetch('/api/filmes/' + f.id, {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+      headers: this.authHeaders(),
     }).then(() => { this.filmeParaApagar.set(null); this.carregar(); });
   }
 
@@ -369,11 +423,12 @@ export class App {
     return url;
   }
 
-  abrirAuth(modo: 'login' | 'registro' | 'esqueci' | 'resetar') {
+  abrirAuth(modo: 'login' | 'registro' | 'esqueci' | 'resetar' | 'reenviar') {
     this.authModo.set(modo);
     this.authErro.set('');
     this.authMensagem.set('');
     this.turnstileToken.set('');
+    this.mostrarSenha.set(false);       // cada vez que abre, a senha começa oculta
     this.authAberto.set(true);
     if (modo === 'login' || modo === 'registro') {
       this.renderTurnstile();   // turnstile so no login/cadastro
@@ -433,6 +488,30 @@ export class App {
       .then(async r => {
         const dados = await r.json();
         if (!r.ok) throw new Error(dados.detail || 'Falha ao solicitar');
+        return dados;
+      })
+      .then(dados => {
+        this.authMensagem.set('📧 ' + dados.mensagem + ' Verifique sua caixa de entrada (ou o spam).');
+        this.authEmail = '';
+      })
+      .catch(err => this.authErro.set(err.message));
+  }
+
+  // ---------- Reenviar e-mail de confirmação de cadastro ----------
+  reenviarConfirmacao() {
+    this.authErro.set('');
+    if (!this.emailValido(this.authEmail)) {
+      this.authErro.set('Insira um e-mail válido');
+      return;
+    }
+    fetch('/api/reenviar-confirmacao', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: this.authEmail.trim() }),
+    })
+      .then(async r => {
+        const dados = await r.json();
+        if (!r.ok) throw new Error(dados.detail || 'Falha ao reenviar');
         return dados;
       })
       .then(dados => {
@@ -545,7 +624,7 @@ export class App {
   confirmarCancelarConta() {
     fetch('/api/conta', {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+      headers: this.authHeaders(),
     }).then(() => { this.contaAberta.set(false); this.sair(); });
   }
 
@@ -556,7 +635,7 @@ export class App {
     this.estornoMsg.set('');
     fetch('/api/estornar', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
+      headers: this.authHeaders(),
     })
       .then(async r => {
         const dados = await r.json();
@@ -575,12 +654,33 @@ export class App {
       .catch(err => this.estornoMsg.set(err.message));
   }
 
-  // ---------- Apagar uma linha do histórico (não acumular) ----------
-  apagarTransacao(id: number) {
-    fetch('/api/transacoes/' + id, {
+  // ---------- Apagar uma linha do histórico (com confirmação) ----------
+  pedirApagarTransacao(t: any) { this.transacaoParaApagar.set(t); }
+  cancelarApagarTransacao() { this.transacaoParaApagar.set(null); }
+  confirmarApagarTransacao() {
+    const t = this.transacaoParaApagar();
+    if (!t) return;
+    fetch('/api/transacoes/' + t.id, {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') },
-    }).then(() => this.carregarTransacoes());
+      headers: this.authHeaders(),
+    }).then(() => { this.transacaoParaApagar.set(null); this.carregarTransacoes(); });
+  }
+
+  // baixa o comprovante em PDF (o backend só devolve se a transação for do usuário logado)
+  baixarComprovante(t: any) {
+    fetch('/api/transacoes/' + t.id + '/comprovante', { headers: this.authHeaders() })
+      .then(async r => {
+        if (this.sessaoExpirou(r)) return;
+        if (!r.ok) { this.mostrarToast('❌ Não foi possível baixar o comprovante.'); return; }
+        const blob = await r.blob();                 // o PDF vem como blob
+        const url = URL.createObjectURL(blob);        // cria uma URL temporária na memória
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (t.tipo === 'estorno' ? 'comprovante_estorno_' : 'comprovante_pagamento_') + t.id + '.pdf';
+        a.click();                                    // dispara o download
+        URL.revokeObjectURL(url);                     // libera a memória
+      })
+      .catch(() => this.mostrarToast('❌ Erro ao baixar o comprovante.'));
   }
 
   // ---------- Formulário de contato (dispara e-mail via backend -> Mailtrap) ----------
@@ -662,10 +762,7 @@ export class App {
     this.rolarChat();                                              // rola apos a pergunta
     fetch('/api/chat', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''),   // pro bot saber da conta
-      },
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),   // pro bot saber da conta
       body: JSON.stringify({ mensagens: this.chatMensagens() }),   // manda o historico inteiro
     })
       .then(async r => {

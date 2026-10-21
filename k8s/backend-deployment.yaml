@@ -43,5 +43,10 @@ spec:
                 secretKeyRef:
                   name: turnstile-secret
                   key: TURNSTILE_SECRET
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: groq-secret
+                  key: GROQ_API_KEY
           ports:
             - containerPort: 8000

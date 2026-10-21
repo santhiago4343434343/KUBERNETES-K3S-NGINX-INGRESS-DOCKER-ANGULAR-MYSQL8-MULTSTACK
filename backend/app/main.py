@@ -11,7 +11,7 @@ import jwt
 from email.message import EmailMessage
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
-from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks, Response
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Float, Text, JSON, Boolean, DateTime, or_
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -269,6 +269,50 @@ def gerar_comprovante_pdf(username, email, metodo, capture_id, data_str):
         return None
 
 
+def gerar_comprovante_estorno_pdf(username, email, refund_id, data_str):
+    # gera um comprovante de ESTORNO em PDF (em memoria) para anexar no e-mail
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 18)
+        pdf.cell(0, 12, "MOVIES TMDA - Comprovante de Estorno", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_draw_color(220, 38, 38)   # linha vermelha (estorno)
+        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+        pdf.ln(6)
+        linhas = [
+            ("Cliente", username),
+            ("E-mail", email),
+            ("Plano", "Premium (cancelado)"),
+            ("Valor estornado", f"{PREMIUM_MOEDA} {PREMIUM_PRECO}"),
+            ("ID do estorno", refund_id or "-"),
+            ("Data", data_str),
+            ("Status", "ESTORNADO"),
+        ]
+        for rotulo, valor in linhas:
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.cell(55, 9, f"{rotulo}:", border=0)
+            pdf.set_font("Helvetica", "", 12)
+            pdf.cell(0, 9, str(valor), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(12)
+        y = pdf.get_y()
+        try:
+            pdf.image(LOGO_PAYPAL, x=(210 - 45) / 2, y=y, w=45)   # logo oficial do PayPal (centralizada)
+            pdf.set_y(y + 20)
+        except Exception:
+            pass   # se a logo nao existir, o comprovante sai normal (sem a logo)
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_text_color(90, 90, 90)
+        pdf.cell(0, 6, "technology in payments", align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(3)
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(130, 130, 130)
+        pdf.multi_cell(0, 5, "Documento gerado automaticamente para fins de demonstracao (projeto academico). Estorno processado em ambiente sandbox do PayPal - sem movimentacao financeira real.", align="C")
+        return bytes(pdf.output())
+    except Exception as e:
+        print(f"Falha ao gerar PDF de estorno: {e}", flush=True)
+        return None
+
+
 def criar_token(username: str) -> str:
     payload = {
         "sub": username,
@@ -334,14 +378,14 @@ def register(dados: UsuarioIn, tarefas: BackgroundTasks):
         link = f"{APP_URL}/?confirmar={token_conf}"
         corpo = (
             '<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;">'
-            '<h2 style="color:#4f46e5;">🎬 Catalogo de Filmes</h2>'
+            '<h2 style="color:#4f46e5;">🎬 MOVIES TMDA</h2>'
             f'<p>Ola, <strong>{username}</strong>! Falta um passo para ativar sua conta.</p>'
             f'<p style="margin:24px 0;"><a href="{link}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Confirmar meu cadastro</a></p>'
             f'<p style="color:#64748b;font-size:13px;">Ou copie e cole este link no navegador:<br>{link}</p>'
-            '<p style="color:#64748b;font-size:13px;margin-top:24px;">Catalogo de Filmes &middot; Powered by TMDB</p>'
+            '<p style="color:#64748b;font-size:13px;margin-top:24px;">MOVIES TMDA &middot; Powered by TMDB</p>'
             '</div>'
         )
-        tarefas.add_task(enviar_email, email, "Confirme seu cadastro - Catalogo de Filmes", corpo)
+        tarefas.add_task(enviar_email, email, "Confirme seu cadastro - MOVIES TMDA", corpo)
         return {"mensagem": "Conta criada! Enviamos um e-mail para voce confirmar o cadastro."}
     finally:
         db.close()
@@ -415,12 +459,39 @@ def esqueci_senha(dados: EmailIn, tarefas: BackgroundTasks):
                 f'<p>Ola, <strong>{u.username}</strong>! Recebemos um pedido para redefinir sua senha.</p>'
                 f'<p style="margin:24px 0;"><a href="{link}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Criar uma nova senha</a></p>'
                 f'<p style="color:#64748b;font-size:13px;">Ou copie e cole este link no navegador:<br>{link}</p>'
-                '<p style="color:#64748b;font-size:13px;margin-top:24px;">Se voce nao pediu isso, pode ignorar este e-mail. Catalogo de Filmes &middot; Powered by TMDB</p>'
+                '<p style="color:#64748b;font-size:13px;margin-top:24px;">Se voce nao pediu isso, pode ignorar este e-mail. MOVIES TMDA &middot; Powered by TMDB</p>'
                 '</div>'
             )
-            tarefas.add_task(enviar_email, u.email, "Redefinir sua senha - Catalogo de Filmes", corpo)
+            tarefas.add_task(enviar_email, u.email, "Redefinir sua senha - MOVIES TMDA", corpo)
         # resposta igual sempre, exista o e-mail ou nao (nao revela quem tem conta)
         return {"mensagem": "Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha."}
+    finally:
+        db.close()
+
+
+@app.post("/api/reenviar-confirmacao")
+def reenviar_confirmacao(dados: EmailIn, tarefas: BackgroundTasks):
+    # reenvia o e-mail de confirmacao para quem se cadastrou mas ainda nao confirmou
+    db = SessionLocal()
+    try:
+        u = db.query(Usuario).filter(Usuario.email == dados.email.strip()).first()
+        if u and not u.confirmado:
+            if not u.token_confirmacao:
+                u.token_confirmacao = uuid.uuid4().hex
+                db.commit()
+            link = f"{APP_URL}/?confirmar={u.token_confirmacao}"
+            corpo = (
+                '<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;">'
+                '<h2 style="color:#4f46e5;">🎬 MOVIES TMDA</h2>'
+                f'<p>Ola, <strong>{u.username}</strong>! Aqui esta um novo link para confirmar seu cadastro.</p>'
+                f'<p style="margin:24px 0;"><a href="{link}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Confirmar meu cadastro</a></p>'
+                f'<p style="color:#64748b;font-size:13px;">Ou copie e cole este link no navegador:<br>{link}</p>'
+                '<p style="color:#64748b;font-size:13px;margin-top:24px;">MOVIES TMDA &middot; Powered by TMDB</p>'
+                '</div>'
+            )
+            tarefas.add_task(enviar_email, u.email, "Confirme seu cadastro - MOVIES TMDA", corpo)
+        # resposta igual sempre (nao revela quem tem conta nem quem ja confirmou)
+        return {"mensagem": "Se o e-mail estiver cadastrado e pendente, reenviamos a confirmacao."}
     finally:
         db.close()
 
@@ -742,10 +813,13 @@ def estornar(tarefas: BackgroundTasks, usuario: str = Depends(usuario_logado)):
             '<p style="margin:4px 0 0;"><strong>Status do plano:</strong> voltou ao gratuito</p>'
             '</div>'
             '<p>O valor deve aparecer na sua forma de pagamento em alguns dias uteis. Esperamos te ver em breve!</p>'
+            '<p>Em anexo voce encontra o <strong>comprovante de estorno em PDF</strong>.</p>'
             '<p style="color:#64748b;font-size:13px;margin-top:24px;">MOVIES TMDA &middot; Powered by TMDB</p>'
             '</div>'
         )
-        tarefas.add_task(enviar_email, u.email, "Reembolso processado - MOVIES TMDA", corpo)
+        data_str = datetime.datetime.now(datetime.timezone.utc).strftime("%d/%m/%Y %H:%M")
+        pdf = gerar_comprovante_estorno_pdf(u.username, u.email, refund_id, data_str)
+        tarefas.add_task(enviar_email, u.email, "Reembolso processado - MOVIES TMDA", corpo, pdf, "comprovante_estorno.pdf")
         return {"ok": True, "premium": False, "reembolsado": True, "id": refund_id}
     finally:
         db.close()
@@ -787,6 +861,37 @@ def apagar_transacao(tid: int, usuario: str = Depends(usuario_logado)):
         ).delete()
         db.commit()
         return {"ok": True}
+    finally:
+        db.close()
+
+
+@app.get("/api/transacoes/{tid}/comprovante")
+def baixar_comprovante(tid: int, usuario: str = Depends(usuario_logado)):
+    # gera e devolve o comprovante em PDF - SO se a transacao for do proprio usuario (anti-IDOR)
+    db = SessionLocal()
+    try:
+        t = db.query(Transacao).filter(
+            Transacao.id == tid, Transacao.username == usuario
+        ).first()
+        if not t:
+            # mesma resposta para "nao existe" e "nao e sua" - nao revela nada
+            raise HTTPException(status_code=404, detail="Comprovante nao encontrado")
+        u = db.query(Usuario).filter(Usuario.username == usuario).first()
+        email = u.email if u else ""
+        data_str = t.criado_em.strftime("%d/%m/%Y %H:%M") if t.criado_em else ""
+        if t.tipo == "estorno":
+            pdf = gerar_comprovante_estorno_pdf(usuario, email, t.capture_id, data_str)
+            nome = f"comprovante_estorno_{t.id}.pdf"
+        else:
+            pdf = gerar_comprovante_pdf(usuario, email, "PayPal", t.capture_id, data_str)
+            nome = f"comprovante_pagamento_{t.id}.pdf"
+        if not pdf:
+            raise HTTPException(status_code=500, detail="Nao foi possivel gerar o comprovante")
+        return Response(
+            content=pdf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+        )
     finally:
         db.close()
 
@@ -936,6 +1041,7 @@ def cancelar_conta(usuario: str = Depends(usuario_logado)):
     db = SessionLocal()
     try:
         db.query(Filme).filter(Filme.username == usuario).delete()
+        db.query(Transacao).filter(Transacao.username == usuario).delete()   # <- NEW 
         db.query(Usuario).filter(Usuario.username == usuario).delete()
         db.commit()
         return {"ok": True}

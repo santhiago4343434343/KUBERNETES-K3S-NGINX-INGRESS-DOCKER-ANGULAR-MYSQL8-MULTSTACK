@@ -91,12 +91,22 @@ Todo o ambiente roda em um cluster **Kubernetes local (k3d)**, com frontend e ba
 - Docker · k3d · kubectl
 - Contas (gratuitas) para as integrações: TMDB, PayPal Developer, Mailtrap, Groq
 
-### 1. Criar o cluster
+### 1. Criar o cluster (sem o Traefik — o roteamento é via NGINX Ingress)
 ```bash
-k3d cluster create painel-obs --port "8090:80@loadbalancer"
+k3d cluster create movies-tmda --port "8090:80@loadbalancer" --k3s-arg "--disable=traefik@server:*"
 ```
 
-### 2. Criar os Secrets (as chaves ficam FORA do código)
+### 2. Instalar o NGINX Ingress Controller
+O cluster usa o **NGINX Ingress** como porta de entrada (`ingressClassName: nginx`). Sem este passo, o `http://localhost:8090` responde **404**.
+```bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/cloud/deploy.yaml
+
+# aguarda o controller ficar pronto
+kubectl wait -n ingress-nginx --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller --timeout=180s
+```
+
+### 3. Criar os Secrets (as chaves ficam FORA do código)
 ```bash
 kubectl create secret generic mysql-secret     --from-literal=MYSQL_USER=... --from-literal=MYSQL_PASSWORD=... --from-literal=MYSQL_DATABASE=catalogo
 kubectl create secret generic tmdb-secret      --from-literal=TMDB_API_KEY=...
@@ -107,13 +117,13 @@ kubectl create secret generic mailtrap-secret  --from-literal=MAIL_HOST=... --fr
 kubectl create secret generic paypal-secret    --from-literal=PAYPAL_CLIENT_ID=... --from-literal=PAYPAL_SECRET=...
 ```
 
-### 3. Aplicar os manifestos e fazer o deploy
+### 4. Aplicar os manifestos e fazer o deploy
 ```bash
 kubectl apply -f k8s/
 ./deploy.sh ambos          # builda e sobe backend + frontend
 ```
 
-### 4. Acessar
+### 5. Acessar
 ```
 http://localhost:8090
 ```
@@ -151,10 +161,10 @@ http://localhost:8090
 
 ## 📄 Licença & Créditos
 
-Projeto desenvolvido para **fins educativos e de portfólio**.
+Projeto desenvolvido para **fins educativos e de portfólio**. O código está sob a licença **MIT** — veja o arquivo [LICENSE](./LICENSE).
 
 Este produto usa a API do **TMDB**, mas não é endossado nem certificado pelo TMDB.
 Pagamentos processados em ambiente **sandbox** do PayPal (sem cobrança real).
 Imagens e dados de filmes pertencem a seus respectivos titulares, conforme a **Lei nº 9.610/98**.
 
-© 2026 · Santhiago · All rights reserved.
+© 2026 · Santhiago · Código sob a licença **MIT** (veja [LICENSE](./LICENSE)).

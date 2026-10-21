@@ -52,6 +52,18 @@ For end-to-end (e2e) testing, run:
 ng e2e
 ```
 
+
+## GITHUB actions CI/CD 
+
+** WARNING...
+ In accordance with the usage policies for CI/CD in GitHub Actions workflows, this project has limitations due to the nature of the remote machine environment; it utilizes only the CI (Continuous Integration) component of GitHub. For a fully functional CD (Continuous Deployment) pipeline, a cloud-based configuration would be required to enable seamless communication with GitHub settings. This project is intended for portfolio purposes only.
+
+
+[![CI](https://github.com/santhiago4343434343/KUBERNETES-K3S-NGINX-INGRESS-DOCKER-ANGULAR-MYSQL8-MULTSTACK/actions/workflows/ci.yml/badge.svg)](https://github.com/santhiago4343434343/KUBERNETES-K3S-NGINX-INGRESS-DOCKER-ANGULAR-MYSQL8-MULTSTACK/actions/workflows/ci.yml)
+
+[![CD]] * limitation due to local settings
+
+ 
 Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
 ## Additional Resources

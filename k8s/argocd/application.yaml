@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: movies-tmda
+  namespace: argocd
+spec:
+  project: default
+  source:                 # DE ONDE vem a verdade
+    repoURL: https://github.com/santhiago4343434343/KUBERNETES-K3S-NGINX-INGRESS-DOCKER-ANGULAR-MYSQL8-MULTSTACK.git
+    targetRevision: main
+    path: k8s
+  destination:            # PARA ONDE vai
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true         # apaga do cluster o que você apagou do Git
+      selfHeal: true      # desfaz mudança feita "na mão" (volta pro estado do Git)
+    syncOptions:
+      - CreateNamespace=true
